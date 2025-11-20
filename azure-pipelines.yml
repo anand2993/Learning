@@ -88,6 +88,11 @@ stages:
         displayName: 'Run Docker Container Locally'
         steps:
           - script: |
+              echo "Building Docker image for deployment..."
+              docker build -t $(dockerImageName):latest -f $(dockerfilePath) .
+            displayName: 'Build Docker Image'
+          
+          - script: |
               echo "Stopping existing container if running..."
               docker stop nodejs-app || true
               docker rm nodejs-app || true
