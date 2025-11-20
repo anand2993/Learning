@@ -1,0 +1,117 @@
+trigger:
+  branches:
+    include:
+      - main
+      - master
+      - develop
+
+# Pool Configuration
+# For Microsoft-hosted agent (cloud), use:
+# pool:
+#   vmImage: 'ubuntu-latest'
+
+# For self-hosted agent (local machine), use:
+pool:
+  name: 'Default'  # Change to your agent pool name if different
+  # demands:
+  #   - agent.name -equals my-local-agent  # Optional: specify exact agent name
+
+variables:
+  dockerImageName: 'nodejs-docker-app'
+  dockerImageTag: '$(Build.BuildId)'
+  containerRegistry: '' # Add your Azure Container Registry or Docker Hub connection name
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+
+stages:
+  - stage: Build
+    displayName: 'Build Application'
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Node.js Application'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: '18.x'
+          
+          - script: |
+              echo "Installing dependencies..."
+              npm install
+            displayName: 'npm install'
+          
+          - script: |
+              echo "Running tests..."
+              npm test
+            displayName: 'npm test'
+          
+          - script: |
+              echo "Build completed successfully"
+            displayName: 'Build Summary'
+
+  - stage: Docker
+    displayName: 'Build and Push Docker Image'
+    dependsOn: Build
+    jobs:
+      - job: DockerJob
+        displayName: 'Docker Build and Push'
+        steps:
+          - task: Docker@2
+            displayName: 'Build Docker Image'
+            inputs:
+              command: 'build'
+              Dockerfile: '$(dockerfilePath)'
+              tags: |
+                $(dockerImageName):$(dockerImageTag)
+                $(dockerImageName):latest
+          
+          # Uncomment and configure when you have a container registry
+          # - task: Docker@2
+          #   displayName: 'Push Docker Image'
+          #   inputs:
+          #     command: 'push'
+          #     containerRegistry: '$(containerRegistry)'
+          #     repository: '$(dockerImageName)'
+          #     tags: |
+          #       $(dockerImageTag)
+          #       latest
+          
+          - script: |
+              echo "Docker image built successfully"
+              docker images | grep $(dockerImageName)
+            displayName: 'List Docker Images'
+
+  - stage: Deploy
+    displayName: 'Deploy Locally'
+    dependsOn: Docker
+    jobs:
+      - job: DeployJob
+        displayName: 'Run Docker Container Locally'
+        steps:
+          - script: |
+              echo "Stopping existing container if running..."
+              docker stop nodejs-app || true
+              docker rm nodejs-app || true
+            displayName: 'Clean up existing container'
+          
+          - script: |
+              echo "Starting new container..."
+              docker run -d \
+                --name nodejs-app \
+                -p 3000:3000 \
+                -e NODE_ENV=production \
+                $(dockerImageName):latest
+            displayName: 'Run Docker Container'
+          
+          - script: |
+              echo "Waiting for application to start..."
+              sleep 5
+              echo "Testing health endpoint..."
+              curl -f http://localhost:3000/health || exit 1
+            displayName: 'Health Check'
+          
+          - script: |
+              echo "Container is running successfully!"
+              docker ps | grep nodejs-app
+              echo ""
+              echo "Application is available at: http://localhost:3000"
+            displayName: 'Deployment Summary'

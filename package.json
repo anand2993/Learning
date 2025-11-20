@@ -1,0 +1,25 @@
+{
+  "name": "nodejs-docker-app",
+  "version": "1.0.0",
+  "description": "Node.js application with Docker containerization and Azure DevOps pipeline",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "nodejs",
+    "docker",
+    "azure-devops",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
